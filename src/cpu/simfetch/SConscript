@@ -1,7 +1,0 @@
-Import('*')
-if env['CONF']['TARGET_ISA'] == 'null':
-    Return()
-
-Source('sim_fetch.cc')
-
-DebugFlag('SimFetch')

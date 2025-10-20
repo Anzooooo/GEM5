@@ -5,11 +5,12 @@
 #ifndef GEM5_SIM_FETCH_HH
 #define GEM5_SIM_FETCH_HH
 
+#include "base/types.hh"
+#include "base/named.hh"
 #include <fstream>
+#include <map>
 #include <string>
 #include <vector>
-#include <map>
-#include "base/types.hh"
 
 #include <optional>
 
@@ -57,7 +58,7 @@ struct FTQEntry {
 };
 
 
-class SimFetch
+class SimFetch : public Named
 {
 public:
     SimFetch(const std::string& trace_path);

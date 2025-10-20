@@ -6,7 +6,7 @@
 
 #include "base/logging.hh"
 #include "cpu/base.hh"
-#include "cpu/pred/btb/test/test_dprintf.hh"
+#include "base/trace.hh"
 #include "debug/Fetch.hh"
 #include "debug/SimFetch.hh"
 #include <sstream>
@@ -19,7 +19,7 @@ namespace o3
 {
 
 SimFetch::SimFetch(const std::string& trace_path)
-    : fetchFinish(false), traceReaderIdx(0), traceQueueEnqIdx(0), traceQueueDeqIdx(0), traceQueueReadIdx(0), ftqEnqIdx(0), ftqDeqIdx(0), ftqReadIdx(0), fetchHead(0), needNewFtqEntry(true)
+    : Named("SimFetch"), fetchFinish(false), traceReaderIdx(0), traceQueueEnqIdx(0), traceQueueDeqIdx(0), traceQueueReadIdx(0), ftqEnqIdx(0), ftqDeqIdx(0), ftqReadIdx(0), fetchHead(0), needNewFtqEntry(true)
 {
     traceStream.open(trace_path);
     if (!traceStream.is_open()) {
@@ -59,7 +59,7 @@ SimFetch::fillNextFTQ()
                 bool is_jump_or_taken = single_trace.pc + current_inst_bytes != next_trace.pc || single_trace.instInfo.isJump;
 
                 if (is_jump_or_taken) {
-                    // printf("set jump or taken, pc: 0x%x\n", pc);
+                    // DPRINTF(SimFetch, "set jump or taken, pc: 0x%x\n", pc);
                 }
                 single_trace.isJumpOrTaken = is_jump_or_taken;
                 next_pc = next_trace.pc;
@@ -79,7 +79,7 @@ SimFetch::fillNextFTQ()
 
         return true;
     } else {
-       // printf("Sim fetch is trace queue full.\n");
+       // DPRINTF(SimFetch, "Sim fetch is trace queue full.\n");
     }
 
     return false;
@@ -155,7 +155,7 @@ SimFetch::analyzeInstr(uint32_t inst)
 void
 SimFetch::traceQueuEnq(TraceInfo trace_info)
 {
-    // printf("trace queue enq, pc: 0x%lx, instr: 0x%x, ftq id: %lu, tracequeue id: %lu\n", trace_info.pc, trace_info.inst, trace_info.ftqIdx, traceQueueEnqIdx);
+    DPRINTF(SimFetch, "trace queue enq, pc: 0x%lx, instr: 0x%x, ftq id: %lu, tracequeue id: %lu\n", trace_info.pc, trace_info.inst, trace_info.ftqIdx, traceQueueEnqIdx);
     traceQueue.emplace(traceQueueEnqIdx, trace_info);
     traceQueueEnqIdx++;
 }
@@ -209,16 +209,16 @@ SimFetch::advanceFtqReadIdx(uint32_t count)
 bool
 SimFetch::redirect(uint64_t ftq_idx, uint64_t trace_queue_idx, Addr pc, bool type)
 {
-    // printf("[Anzo] redirect ftq_idx: %lu, trace_queue_idx: %lu, pc: 0x%lx, type: % d\n", ftq_idx, trace_queue_idx, pc, type);
+    DPRINTF(SimFetch, "[Anzo] redirect ftq_idx: %lu, trace_queue_idx: %lu, pc: 0x%lx, type: % d\n", ftq_idx, trace_queue_idx, pc, type);
     auto trace_queue_it = traceQueue.find(trace_queue_idx);
     auto ftq_it = ftq.find(ftq_idx);
 
     if (trace_queue_it == traceQueue.end()) {
-        // printf("trace queue finish\n");
+        DPRINTF(SimFetch, "trace queue finish\n");
     }
 
     if (ftq_it == ftq.end()) {
-        // printf("ftq finish\n");
+        DPRINTF(SimFetch, "ftq finish\n");
     }
 
     if (trace_queue_it != traceQueue.end() && ftq_it != ftq.end()) {
@@ -233,7 +233,7 @@ SimFetch::redirect(uint64_t ftq_idx, uint64_t trace_queue_idx, Addr pc, bool typ
                 uint64_t target_ftq_idx = ftq_idx;
 
                 Addr trace_queue_pc = trace_queue_it->second.pc;
-                // printf("trace queue pc: 0x%lx, redirect pc: 0x%lx\n", trace_queue_pc, pc);
+                DPRINTF(SimFetch, "trace queue pc: 0x%lx, redirect pc: 0x%lx\n", trace_queue_pc, pc);
 
                 if (trace_queue_pc == pc) {
                     traceQueueReadIdx = target_trace_queue_idx;
@@ -257,7 +257,7 @@ SimFetch::redirect(uint64_t ftq_idx, uint64_t trace_queue_idx, Addr pc, bool typ
                 }
 
                 Addr next_trace_pc = traceQueue[target_trace_queue_idx].pc;
-                // printf("redirect expect ftq id: %lu, tracequeue id: %lu, pc: 0x%lx\n", target_ftq_idx, target_trace_queue_idx, next_trace_pc);
+                DPRINTF(SimFetch, "redirect expect ftq id: %lu, tracequeue id: %lu, pc: 0x%lx\n", target_ftq_idx, target_trace_queue_idx, next_trace_pc);
                 if (next_trace_pc == pc) {
                     traceQueueReadIdx = target_trace_queue_idx;
                     ftqReadIdx = target_ftq_idx;
@@ -266,8 +266,8 @@ SimFetch::redirect(uint64_t ftq_idx, uint64_t trace_queue_idx, Addr pc, bool typ
                 }
             } else {
                 auto tmp = traceQueue[trace_queue_idx];
-                printf("find, pc: 0x%lx, ftq id: %lu, tracequeue id: %lu\n", trace_queue_it->second.pc, trace_queue_it->second.ftqIdx, trace_queue_it->first);
-                printf("array, pc: 0x%lx, ftq id: %lu, tracequeue id: %lu\n", tmp.pc, tmp.ftqIdx, trace_queue_idx);
+                DPRINTF(SimFetch, "find, pc: 0x%lx, ftq id: %lu, tracequeue id: %lu\n", trace_queue_it->second.pc, trace_queue_it->second.ftqIdx, trace_queue_it->first);
+                DPRINTF(SimFetch, "array, pc: 0x%lx, ftq id: %lu, tracequeue id: %lu\n", tmp.pc, tmp.ftqIdx, trace_queue_idx);
                 fatal("q q mismatch! ftq idx: %lu, from tracequeue ftd idx: %lu\n", ftq_idx, trace_queue_it->second.ftqIdx);
             }
         } else {
@@ -293,19 +293,19 @@ SimFetch::redirect(uint64_t ftq_idx, uint64_t trace_queue_idx, Addr pc, bool typ
 bool
 SimFetch::commit(uint64_t trace_queue_idx)
 {
-   // printf("Commit sim trace queue started size: 0x%lx, commit idx: 0x%lx\n", traceQueue.size(), trace_queue_idx);
+   // DPRINTF(SimFetch, "Commit sim trace queue started size: 0x%lx, commit idx: 0x%lx\n", traceQueue.size(), trace_queue_idx);
     auto find_it = traceQueue.find(trace_queue_idx);
 
     auto ftq_begin_idx = ftq.end()->first;
     auto commit_ftq_idx = find_it->second.ftqIdx;
 
     if (find_it->second.isLastFtqEntry) {
-        // printf("erase ftq: %ld\n", find_it->second.ftqIdx);
+        // DPRINTF(SimFetch, "erase ftq: %ld\n", find_it->second.ftqIdx);
         auto ftq_end_it = ftq.upper_bound(find_it->second.ftqIdx);
         ftq.erase(ftq.begin(), ftq_end_it);
     } else if (ftq_begin_idx < commit_ftq_idx) {
         auto ftq_end_it = ftq.upper_bound(find_it->second.ftqIdx - 1);
-        // printf("erase ftq: %ld\n", find_it->second.ftqIdx);
+        // DPRINTF(SimFetch, "erase ftq: %ld\n", find_it->second.ftqIdx);
         ftq.erase(ftq.begin(), ftq_end_it);
     }
 
@@ -313,7 +313,7 @@ SimFetch::commit(uint64_t trace_queue_idx)
         auto trace_queue_end_it = traceQueue.upper_bound(trace_queue_idx);
         auto begin_idx = traceQueue.begin()->first;
         traceQueue.erase(traceQueue.begin(), trace_queue_end_it);
-       // printf("Commit sim trace queue finished size: 0x%lx, commit count: 0x%lx\n", traceQueue.size(), begin_idx);
+       // DPRINTF(SimFetch, "Commit sim trace queue finished size: 0x%lx, commit count: 0x%lx\n", traceQueue.size(), begin_idx);
         return true;
     }
 

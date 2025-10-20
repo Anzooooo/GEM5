@@ -66,6 +66,7 @@
 #include "debug/Mwait.hh"
 #include "debug/SyscallVerbose.hh"
 #include "debug/Thread.hh"
+#include "debug/SimFetch.hh"
 #include "mem/page_table.hh"
 #include "params/BaseCPU.hh"
 #include "sim/clocked_object.hh"
@@ -932,6 +933,7 @@ BaseCPU::diffWithNEMU(ThreadID tid, InstSeqNum seq)
     } else {
         // difftest step start
         DPRINTF(Diff, "Step NEMU\n");
+        DPRINTF(SimFetch, "nemu exec, pc: %s, [sn:%llu]", diffInfo.pc, seq);
         diffAllStates->proxy->exec(1);
         if (diffInfo.inst->isFusion()) {
             diffAllStates->proxy->exec(1); // execute the second part of the fusion

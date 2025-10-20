@@ -2560,8 +2560,8 @@ Fetch::simHandleCommitSignals(ThreadID tid)
     // Check squash signals from commit.
     if (fromCommit->commitInfo[tid].squash) {
 
-        // printf( "[tid:%i] Sim Squashing instructions due to squash "
-        //         "from commit.\n",tid);
+        DPRINTF(Fetch, "[tid:%i] Sim Squashing instructions due to squash "
+                "from commit.\n",tid);
         // In any case, squash.
         squash(*fromCommit->commitInfo[tid].pc,
                fromCommit->commitInfo[tid].doneSeqNum,
@@ -2573,25 +2573,25 @@ Fetch::simHandleCommitSignals(ThreadID tid)
 
         auto mispred_inst = fromCommit->commitInfo[tid].mispredictInst;
         if (mispred_inst) {
-            // printf("Use mispred inst to redirect. "
-            //                "FsqId: %d, FtqId: %d, Tatget: 0x%lx\n",
-            //                mispred_inst->getFtqId(), mispred_inst->getFsqId(), fromCommit->commitInfo[tid].pc->instAddr());
+            DPRINTF(Fetch, "Use mispred inst to redirect. "
+                           "FsqId: %d, FtqId: %d, Tatget: 0x%lx\n",
+                           mispred_inst->getFtqId(), mispred_inst->getFsqId(), fromCommit->commitInfo[tid].pc->instAddr());
 
             simFetch->redirect(mispred_inst->getFtqId(), mispred_inst->getFsqId(),
                 fromCommit->commitInfo[tid].pc->instAddr(), true);
 
         } else if (fromCommit->commitInfo[tid].isTrapSquash) {
-            // printf("Use trap inst to redirect."
-            //    "FsqId: %ld, FtqId: %ld, Tatget: 0x%lx\n",
-            //    fromCommit->commitInfo[tid].squashedTargetId, fromCommit->commitInfo[tid].squashedStreamId, fromCommit->commitInfo[tid].pc->instAddr());
+            DPRINTF(Fetch, "Use trap inst to redirect."
+               "FsqId: %ld, FtqId: %ld, Tatget: 0x%lx\n",
+               fromCommit->commitInfo[tid].squashedTargetId, fromCommit->commitInfo[tid].squashedStreamId, fromCommit->commitInfo[tid].pc->instAddr());
 
             simFetch->redirect(fromCommit->commitInfo[tid].squashedTargetId, fromCommit->commitInfo[tid].squashedStreamId,
                 fromCommit->commitInfo[tid].pc->instAddr(), true);
 
         } else {
-            // printf("Use IEW inst to redirect. "
-            //    "FsqId: %ld, FtqId: %ld, Tatget: 0x%lx\n",
-            //    fromCommit->commitInfo[tid].squashedTargetId, fromCommit->commitInfo[tid].squashedStreamId, fromCommit->commitInfo[tid].pc->instAddr());
+            DPRINTF(Fetch, "Use IEW inst to redirect. "
+               "FsqId: %ld, FtqId: %ld, Tatget: 0x%lx\n",
+               fromCommit->commitInfo[tid].squashedTargetId, fromCommit->commitInfo[tid].squashedStreamId, fromCommit->commitInfo[tid].pc->instAddr());
 
             simFetch->redirect(fromCommit->commitInfo[tid].squashedTargetId, fromCommit->commitInfo[tid].squashedStreamId,
                 fromCommit->commitInfo[tid].pc->instAddr(), false);
@@ -2600,7 +2600,7 @@ Fetch::simHandleCommitSignals(ThreadID tid)
         return true;
     } else if (fromCommit->commitInfo[tid].doneSeqNum) {
         // printf("flag\n");
-        // printf("Commit Fsq: %ld, commit pc: 0x%lx\n", fromCommit->commitInfo[tid].doneFsqId, fromCommit->commitInfo[tid].committedPC);
+        DPRINTF(Fetch, "Commit Fsq: %ld, commit pc: 0x%lx\n", fromCommit->commitInfo[tid].doneFsqId, fromCommit->commitInfo[tid].committedPC);
         simFetch->commit(fromCommit->commitInfo[tid].doneFsqId);
 
         return false;
@@ -2610,16 +2610,16 @@ Fetch::simHandleCommitSignals(ThreadID tid)
     // Check squash signals from decode.
     // =============================================
     if (fromDecode->decodeInfo[tid].squash) {
-        // printf("[tid:%i] Squashing instructions due to squash "
-        //         "from decode.\n",tid);
+        DPRINTF(Fetch, "[tid:%i] Squashing instructions due to squash "
+                "from decode.\n",tid);
 
         auto mispred_inst = fromDecode->decodeInfo[tid].mispredictInst;
 
         if (fetchStatus[tid] != Squashing) {
-            // printf("Squashing from decode with PC = 0x%lx\n",
-            //     fromDecode->decodeInfo[tid].nextPC->instAddr());
-            // // Squash unless we're already squashing
-            // simFetch->redirect(mispred_inst->getFtqId(), mispred_inst->getFsqId(), fromDecode->decodeInfo[tid].nextPC->instAddr(), true);
+            DPRINTF(Fetch, "Squashing from decode with PC = 0x%lx\n",
+                fromDecode->decodeInfo[tid].nextPC->instAddr());
+            // Squash unless we're already squashing
+            simFetch->redirect(mispred_inst->getFtqId(), mispred_inst->getFsqId(), fromDecode->decodeInfo[tid].nextPC->instAddr(), true);
 
             squashFromDecode(*fromDecode->decodeInfo[tid].nextPC,
                  fromDecode->decodeInfo[tid].squashInst,

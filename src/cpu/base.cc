@@ -933,7 +933,7 @@ BaseCPU::diffWithNEMU(ThreadID tid, InstSeqNum seq)
     } else {
         // difftest step start
         DPRINTF(Diff, "Step NEMU\n");
-        DPRINTF(SimFetch, "nemu exec, pc: %s, [sn:%llu]", diffInfo.pc, seq);
+        DPRINTF(SimFetch, "nemu exec, pc: 0x%lx, [sn:%llu]", diffInfo.pc->instAddr(), seq);
         diffAllStates->proxy->exec(1);
         if (diffInfo.inst->isFusion()) {
             diffAllStates->proxy->exec(1); // execute the second part of the fusion

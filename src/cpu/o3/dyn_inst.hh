@@ -68,6 +68,7 @@
 #include "cpu/translation.hh"
 #include "debug/CommitTrace.hh"
 #include "debug/DecoupleBP.hh"
+#include "debug/IEW.hh"
 #include "debug/HtmCpu.hh"
 #include "debug/RiscvMisc.hh"
 
@@ -395,6 +396,9 @@ class DynInst : public ExecContext, public RefCounted
     /** The number of loop iteration within an fsq entry of the instruction. */
     unsigned loopIteration;
 
+    /** For ideal frontend use*/
+    uint64_t simFtqId;
+
     /** The Macroop if one exists */
     const StaticInstPtr macroop;
 
@@ -635,6 +639,8 @@ class DynInst : public ExecContext, public RefCounted
         staticInst->advancePC(*next_pc);
         DPRINTF(DecoupleBP, "check misprediction next pc=%s and pred pc=%s\n",
                 *next_pc, *predPC);
+        DPRINTF(IEW, "check misprediction current pc=%s, next pc=%s and pred pc=%s [sn:%llu]\n",
+        *pc, *next_pc, *predPC, seqNum);
         return *next_pc != *predPC;
     }
 

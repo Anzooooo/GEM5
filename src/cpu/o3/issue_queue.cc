@@ -23,6 +23,7 @@
 #include "debug/Dispatch.hh"
 #include "debug/Schedule.hh"
 #include "enums/OpClass.hh"
+#include "debug/Fetch.hh"
 #include "params/BaseO3CPU.hh"
 #include "sim/eventq.hh"
 #include "sim/sim_object.hh"
@@ -271,6 +272,7 @@ IssueQue::IssueQue(const IssueQueParams& params)
         } else {
             // use the existing one
             t = it->second;
+            // DPRINTF(Fetch, "[Anzo] ReadyQue, pcState: %s, pc: 0x%lx, seqNum: %ld\n", t->end()->get()->pcState(), t->end()->get()->getPC(), t->end()->get()->seqNum);
         }
         readyQs[i] = t;
 
@@ -341,6 +343,7 @@ IssueQue::addToFu(const DynInstPtr& inst)
     }
     inst->setIssued();
     POPINST(inst);
+    // DPRINTF(Fetch, "[Anzo] IQ AddToFu push instr, pcState: %s, pc: 0x%lx, seqNum: %ld\n", inst->pcState(), inst->getPC(), inst->seqNum);
     scheduler->addToFU(inst);
 }
 
@@ -370,7 +373,7 @@ IssueQue::issueToFu()
             }
             issuedStore++;
         }
-
+        // DPRINTF(Fetch, "[Anzo] IuuseToFu push instr, pcState: %s, pc: 0x%lx, seqNum: %ld\n", inst->pcState(), inst->getPC(), inst->seqNum);
         scheduler->addToFU(inst);
         DPRINTF(Schedule, "[sn:%llu] replayed to FU\n", inst->seqNum);
         replayQ.pop();
@@ -468,7 +471,7 @@ IssueQue::wakeUpDependents(const DynInstPtr& inst, bool speculative)
             consumer->markSrcRegReady(srcIdx);
 
 
-            DPRINTF(Schedule, "[sn:%llu] src%d was woken\n", consumer->seqNum, srcIdx);
+            // DPRINTF(Fetch, "[sn:%llu] src%d was woken\n", consumer->seqNum, srcIdx);
             addIfReady(consumer);
         }
 
@@ -500,6 +503,8 @@ IssueQue::addIfReady(const DynInstPtr& inst)
         DPRINTF(Schedule, "[sn:%llu] add to readyInstsQue\n", inst->seqNum);
         inst->clearCancel();
         if (!inst->inReadyQ()) {
+            // DPRINTF(Fetch, "AXA\n");
+            // DPRINTF(Fetch, "[Anzo] !inReadyQ instr, pcState: %s, pc: 0x%lx, seqNum: %ld\n", inst->pcState(), inst->getPC(), inst->seqNum);
             READYQ_PUSH(inst);
         }
     }
@@ -574,7 +579,7 @@ IssueQue::selectInst()
                         scheduler->useRfRdPort(inst, psrc, rfTypePortId.first, rfTypePortId.second);
                     }
                 }
-
+                // DPRINTF(Fetch, "[Anzo] selectQ, pcState: %s, pc: 0x%lx, seqNum: %ld\n", inst->pcState(), inst->getPC(), inst->seqNum);
                 selectQ.push_back(std::make_pair(pi, inst));
                 inst->clearInReadyQ();
                 readyQ->erase(it);
@@ -601,12 +606,13 @@ IssueQue::scheduleInst()
             DPRINTF(Schedule, "[sn:%llu] arbitration failed, retry\n", inst->seqNum);
             iqstats->arbFailed++;
             assert(inst->readyToIssue());
-
+            // DPRINTF(Fetch, "[Anzo] READYQ instr, pcState: %s, pc: 0x%lx, seqNum: %ld\n", inst->pcState(), inst->getPC(), inst->seqNum);
             READYQ_PUSH(inst);
         } else [[likely]] {
             DPRINTF(Schedule, "[sn:%llu] no conflict, scheduled\n", inst->seqNum);
             iqstats->portissued[pi]++;
             inst->setScheduled();
+            // DPRINTF(Fetch, "[Anzo] Schedule instr, pcState: %s, pc: 0x%lx, seqNum: %ld\n", inst->pcState(), inst->getPC(), inst->seqNum);
             toIssue->push(inst);
             inst->issueportid = pi;
 
@@ -700,6 +706,8 @@ IssueQue::insert(const DynInstPtr& inst)
         // insert and check memDep
         scheduler->memDepUnit[inst->threadNumber].insert(inst);
     } else {
+        // DPRINTF(Fetch, "BXB\n");
+        // DPRINTF(Fetch, "[Anzo] insert IQ, pcState: %s, pc: 0x%lx, seqNum: %ld\n", inst->pcState(), inst->getPC(), inst->seqNum);
         addIfReady(inst);
     }
 }
@@ -950,6 +958,7 @@ Scheduler::addToFU(const DynInstPtr& inst)
 #endif
     inst->clearCancel();
     DPRINTF(Schedule, "%s [sn:%llu] add to FUs\n", enums::OpClassStrings[inst->opClass()], inst->seqNum);
+    // DPRINTF(Fetch, "[Anzo] AddToFU push instr, pcState: %s, pc: 0x%lx, seqNum: %ld\n", inst->pcState(), inst->getPC(), inst->seqNum);
     instsToFu.push_back(inst);
 }
 
@@ -1099,13 +1108,18 @@ Scheduler::addProducer(const DynInstPtr& inst)
 void
 Scheduler::insert(const DynInstPtr& inst, int disp_seq)
 {
+    DPRINTF(Fetch, "FFF\n");
+    DPRINTF(Fetch, "[Anzo] in Scheduler insert, pcState: %s, pc: 0x%lx, seqNum: %ld\n", inst->pcState(), inst->getPC(), inst->seqNum);
     if (inst->isSplitStoreAddr()) {
+        DPRINTF(Fetch, "UUU\n");
         auto stduop = inst->createStoreDataUop();
+        DPRINTF(Fetch, "VVV\n");
         this->insert(stduop, disp_seq);
+        DPRINTF(Fetch, "NNN\n");
         // transform self to storeAddruop
         inst->buildStoreAddrUop();
     }
-
+    DPRINTF(Fetch, "ZZZ\n");
     auto& iqs = dispTable[inst->opClass()];
 
     if (old_disp) {
@@ -1114,12 +1128,16 @@ Scheduler::insert(const DynInstPtr& inst, int disp_seq)
         for (auto iq : iqs) {
             if (iq->ready()) {
                 insert = true;
+                // DPRINTF(Fetch, "EXE\n");
+                // DPRINTF(Fetch, "[Anzo] Scheduler insert, pcState: %s, pc: 0x%lx, seqNum: %ld\n", inst->pcState(), inst->getPC(), inst->seqNum);
                 iq->insert(inst);
                 break;
             }
         }
         panic_if(!insert, "can't find ready IQ to insert");
     } else {
+        // DPRINTF(Fetch, "CXC\n");
+        // DPRINTF(Fetch, "[Anzo] Scheduler insert not, pcState: %s, pc: 0x%lx, seqNum: %ld\n", inst->pcState(), inst->getPC(), inst->seqNum);
         assert(iqs[dispSeqVec.at(disp_seq)]->ready());
         iqs[dispSeqVec.at(disp_seq)]->insert(inst);
     }

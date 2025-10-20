@@ -460,11 +460,13 @@ DynInstPtr DynInst::createStoreDataUop()
     arrays.numSrcs = 1;
     arrays.numDests = 0;
     StaticInstPtr stdinst = new RiscvISA::StoreData(this->staticInst);
-    DynInstPtr stduop = new (arrays) DynInst(arrays, stdinst, macroop, this->seqNum, cpu);
+    DynInstPtr stduop = new (arrays) DynInst(arrays, stdinst, macroop, *this->pc, *this->predPC, this->seqNum, cpu);
 
     stduop->thread = this->thread;
     stduop->renameSrcReg(0, this->extRenamedSrcIdx(1));
 
+    // stduop->effAddr = this->effAddr;
+    // printf("new effaddr: 0x%lx, this effaddr: 0x%lx\n", stduop->effAddr, this->effAddr);
     if (this->readySrcIdx(1)) {
         stduop->markSrcRegReady(0);
     }

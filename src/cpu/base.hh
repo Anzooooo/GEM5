@@ -727,6 +727,7 @@ class BaseCPU : public ClockedObject
 
     gem5::GoldenGloablMem *_goldenMemManager;
 
+    bool notRespInter;
   public:
     const unsigned MaxDestRegisters = 2;
 

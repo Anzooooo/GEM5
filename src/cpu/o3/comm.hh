@@ -59,7 +59,8 @@ namespace o3
 {
 
 /** stall reasons in each stages*/
-enum StallReason {
+enum StallReason
+{
     NoStall,  // Base
     IcacheStall,  // F
     ITlbStall,  // F
@@ -102,7 +103,9 @@ enum StallReason {
     ResumeUnblock,  // B
     CommitSquash,  // BS
     OtherStall,  // B
-    NumStallReasons
+    NumStallReasons,
+
+    TraceQueueStall // Sim Fetch
 };
 
 /** Struct that defines the information passed from fetch to decode. */

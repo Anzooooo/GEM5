@@ -62,6 +62,7 @@
 #include "debug/Counters.hh"
 #include "debug/DecoupleBP.hh"
 #include "debug/Drain.hh"
+#include "debug/Fetch.hh"
 #include "debug/IEW.hh"
 #include "debug/O3PipeView.hh"
 #include "debug/Rename.hh"
@@ -726,8 +727,8 @@ IEW::readyToFinish(const DynInstPtr& inst)
     scheduler->bypassWriteback(inst);
     inst->completionTick = curTick();
 
-    DPRINTF(IEW, "Current wb cycle: %i, width: %i, numInst: %i\nwbActual:%i\n",
-            wbCycle, wbWidth, wbNumInst, wbCycle * wbWidth + wbNumInst);
+    DPRINTF(IEW, "Current wb cycle: %i, width: %i, numInst: %i wbActual:%i, PC: %s\n",
+            wbCycle, wbWidth, wbNumInst, wbCycle * wbWidth + wbNumInst, inst->pcState());
     // Add finished instruction to queue to commit.
     (*iewQueue)[wbCycle].insts[wbNumInst] = inst;
     (*iewQueue)[wbCycle].size++;
@@ -1066,6 +1067,9 @@ IEW::dispatchInstFromRename(ThreadID tid)
         while (!insts_to_dispatch.empty()) {
             bool add_to_iq = false;
             auto &inst = insts_to_dispatch.front();
+            // DPRINTF(Fetch, "x\n");
+            // DPRINTF(Fetch, "[Anzo] dispatchInstFromRename instr, pcState: %s, pc: 0x%lx, seqNum: %ld\n", inst->pcState(), inst->getPC(), inst->seqNum);
+            // DPRINTF(Fetch, "b\n");
             disp_seq++;
             int ins = cpu->cpuStats.committedInsts.total();
             if (cpu->hasHintDownStream() && ins % 10000 == 1) {
@@ -1405,6 +1409,7 @@ IEW::dispatchInstFromDispQue(ThreadID tid)
         scheduler->lookahead(dispQue[i]);
         while (!dispQue[i].empty() && dispatched < dispWidth[i]) {
             inst = dispQue[i].front();
+            // DPRINTF(Fetch, "[Anzo] dispatchInstFromDispQue instr, pcState: %s, pc: 0x%lx, seqNum: %ld\n", inst->pcState(), inst->getPC(), inst->seqNum);
             disp_seq++;
 
             // Check for squashed instructions.
@@ -1667,8 +1672,8 @@ IEW::executeInsts()
 
         DynInstPtr inst = instQueue.getInstToExecute();
 
-        DPRINTF(IEW, "Execute: Processing PC %s, [tid:%i] [sn:%llu].\n",
-                inst->pcState(), inst->threadNumber,inst->seqNum);
+        DPRINTF(IEW, "Execute: Processing PC %s, ftq: %lu, fsq: %lu [tid:%i] [sn:%llu].\n",
+                inst->pcState(), inst->getFtqId(), inst->getFsqId(), inst->threadNumber,inst->seqNum);
 
         // Notify potential listeners that this instruction has started
         // executing
@@ -1745,7 +1750,7 @@ IEW::executeInsts()
                 inst->setExecuted();
                 readyToFinish(inst);
             } else {
-                DPRINTF(IEW, "Execute: Split store data, [sn:%lli]\n", inst->seqNum);
+                // DPRINTF(IEW, "Execute: Split store data, [sn:%lli]\n", inst->seqNum);
                 // STD is ready, wake up corresponding load if any
                 instQueue.resolveSTLFFailInst(inst->seqNum);
                 if (inst->sqIt->splitStoreFinish()) {
@@ -2035,6 +2040,7 @@ IEW::checkMisprediction(const DynInstPtr& inst)
 
         if (inst->mispredicted()) {
             fetchRedirect[tid] = true;
+            DPRINTF(IEW, "Anzo flag IEW 0\n");
 
             DPRINTF(IEW, "[tid:%i] [sn:%llu] Execute: "
                     "Branch mispredict detected.\n",

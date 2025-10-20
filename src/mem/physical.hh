@@ -344,6 +344,11 @@ class PhysicalMemory : public Serializable
      */
     bool tryRestoreFromXSCpt();
 
+    /**
+     * Return the name for to NEMU.
+     */
+    const std::string getCptFile() const { return xsCptPath; }
+
 };
 
 } // namespace memory

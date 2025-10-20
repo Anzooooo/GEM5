@@ -1437,7 +1437,7 @@ LSQUnit::loadDoRecvData(const DynInstPtr &inst)
 Fault
 LSQUnit::loadDoWriteback(const DynInstPtr &inst)
 {
-    DPRINTF(LoadPipeline, "loadDoWriteback: load [sn:%lli]\n", inst->seqNum);
+    DPRINTF(LoadPipeline, "loadDoWriteback: pc: %s, data: 0x%lx, addr: 0x%lx, load [sn:%lli]\n", inst->pcState(), *((uint64_t*)(inst->memData)), inst->effAddr, inst->seqNum);
     return NoFault;
 }
 
@@ -3347,7 +3347,23 @@ LSQUnit::write(LSQRequest *request, uint8_t *data, ssize_t store_idx)
     // copy data into the storeQueue only if the store request has valid data
     if (!(request->req()->getFlags() & Request::CACHE_BLOCK_ZERO) && !request->req()->isCacheMaintenance() &&
         !request->req()->isAtomic() && !entry.instruction()->isSplitStoreAddr()) {
+        DPRINTF(StorePipeline, "Anzo Store Write: pc: %s, data: 0x%lx, addr: 0x%lx, load [sn:%lli]\n", entry.instruction()->pcState(), *((uint64_t*)(data)), entry.instruction()->effAddr, entry.instruction()->seqNum);
         memcpy(entry.data(), data, size);
+    } else {
+        DPRINTF(StorePipeline, "Anzo Store Not Write: pc: %s, addr: 0x%lx, "
+                               "Flags: %d, "
+                               "isCacheMaintenance: %d, "
+                               "isAtomic: %d, "
+                               "isSplitStoreAddr: %d, "
+                               "load [sn:%lli]\n",
+                               entry.instruction()->pcState(), entry.instruction()->effAddr,
+                               (request->req()->getFlags() & Request::CACHE_BLOCK_ZERO),
+                               request->req()->isCacheMaintenance(),
+                               request->req()->isAtomic(),
+                               entry.instruction()->isSplitStoreAddr(),
+                               entry.instruction()->seqNum);
+
+
     }
 
     // This function only writes the data to the store queue, so no fault

@@ -167,7 +167,8 @@ BaseCPU::BaseCPU(const Params &p, bool is_checker)
       enableRVV(p.enable_riscv_vector),
       enableRVHDIFF(p.enable_riscv_h),
       noHypeMode(false),
-      enableMemDedup(p.enable_mem_dedup)
+      enableMemDedup(p.enable_mem_dedup),
+      notRespInter(!p.gen_instr_trace_name.empty() || p.system->params().use_ideal_frontend)
 {
     // if Python did not provide a valid ID, do it here
     if (_cpuId == -1 ) {
@@ -224,6 +225,7 @@ BaseCPU::BaseCPU(const Params &p, bool is_checker)
             diffAllStates->proxy =
                 new NemuProxy(params().cpu_id, params().difftest_ref_so.c_str(),
                               params().nemuSDimg.size() && params().nemuSDCptBin.size(), system->enabledMemDedup(),
+                              !params().gen_instr_trace_name.empty(),
                               system->multiCore());
         }
 
@@ -392,6 +394,10 @@ BaseCPU::init()
 void
 BaseCPU::startup()
 {
+    if (diffAllStates->proxy->set_workload_path) {
+        diffAllStates->proxy->set_workload_path(params().gen_instr_trace_name.c_str());
+    }
+
     if (params().progress_interval) {
         new CPUProgressEvent(this, params().progress_interval);
     }
@@ -892,9 +898,14 @@ BaseCPU::diffWithNEMU(ThreadID tid, InstSeqNum seq)
     }
 
     if (diffAllStates->diff.will_handle_intr) {
+        assert(!notRespInter);
+        if (diffAllStates->proxy->set_skip_flag != nullptr) {
+            diffAllStates->proxy->set_skip_flag();
+        }
         diffAllStates->proxy->regcpy(diffAllStates->diff.nemu_reg, REF_TO_DIFFTEST);
         diffAllStates->diff.nemu_this_pc = diffAllStates->diff.nemu_reg->pc;
         diffAllStates->diff.will_handle_intr = false;
+
     }
 
     if (is_mmio) {
@@ -905,6 +916,10 @@ BaseCPU::diffWithNEMU(ThreadID tid, InstSeqNum seq)
             const auto &dest = diffInfo.inst->destRegIdx(0);
             unsigned index = dest.index() + (dest.isFloatReg() ? FPRegIndexBase : IntRegIndexBase);
             diffAllStates->referenceRegFile[index] = diffInfo.scalarResults[0];
+        }
+        // printf("mmio skip pc: 0x%lx\n", diffInfo.pc->instAddr());
+        if (diffAllStates->proxy->set_skip_flag != nullptr) {
+            diffAllStates->proxy->set_skip_flag();
         }
         diffAllStates->proxy->regcpy(&(diffAllStates->referenceRegFile), DUT_TO_REF);
 
@@ -1409,6 +1424,7 @@ BaseCPU::diffWithNEMU(ThreadID tid, InstSeqNum seq)
                             skipCSR = true;
                             DPRINTF(Diff, "This is an csr instruction, skip!\n");
                             diffAllStates->referenceRegFile[dest_tag] = gem5_val;
+                            // printf("CSR skip pc: 0x%lx\n", diffInfo.pc->instAddr());
                             diffAllStates->proxy->regcpy(&(diffAllStates->referenceRegFile), DUT_TO_REF);
                             break;
                         }
@@ -1505,6 +1521,7 @@ BaseCPU::difftestStep(ThreadID tid, InstSeqNum seq)
     }
 
     if (enableDifftest && should_diff) {
+        // printf("[Anzo] Difftest Test\n");
         auto [diff_at, npc_match] = diffWithNEMU(tid, seq);
         if (diff_at != NoneDiff) {
             if (npc_match && diff_at == PCDiff) {

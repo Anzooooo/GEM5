@@ -63,6 +63,7 @@
 #include "mem/port.hh"
 #include "sim/eventq.hh"
 #include "sim/probe/probe.hh"
+#include "cpu/simfetch/sim_fetch.hh"
 
 namespace gem5
 {
@@ -1094,6 +1095,17 @@ class Fetch
 
     SquashVersion localSquashVer;
 
+    const bool useIdealFrontend;
+
+    const std::string traceFilename;
+
+    // Anzo sim frontend logic
+
+    std::unique_ptr<SimFetch> simFetch;
+
+    bool simHandleCommitSignals(ThreadID tid);
+    bool simInitializeTickState();
+    void simFetchAndProcessInstructions();
 public:
     const FetchStatGroup &getFetchStats() { return fetchStats; }
 

@@ -70,8 +70,13 @@ StoreData::execute(ExecContext *xc, Trace::InstRecord *) const
 
     if (inst->sqIt->instruction()->getFault() == NoFault) {
         // if instruction has already faulted, then skip executing std
-        if (inst->sqIt->instruction()->memData)
+        if (inst->sqIt->instruction()->memData) {
+            // printf("Anzo write store X pc: 0x%lx, addr: 0x%lx, data: 0x%lx, [sn:%li]\n", inst->getPC(), inst->effAddr, data, inst->seqNum);
             memcpy(inst->sqIt->instruction()->memData, &data, memsize);
+        }
+
+
+        // printf("Anzo write store Z pc: 0x%lx, addr: 0x%lx, data: 0x%lx, [sn:%li]\n", inst->sqIt->instruction()->getPC(), inst->effAddr, data, inst->seqNum);
         memcpy(inst->sqIt->data(), &data, memsize);
         inst->sqIt->setStatus(o3::SplitStoreStatus::DataReady);
         inst->sqIt->setStatus(o3::SplitStoreStatus::StdPipeFinish);

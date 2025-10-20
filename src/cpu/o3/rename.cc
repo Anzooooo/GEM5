@@ -50,6 +50,7 @@
 #include "debug/Activity.hh"
 #include "debug/O3PipeView.hh"
 #include "debug/Rename.hh"
+#include "debug/Fetch.hh"
 #include "debug/Counters.hh"
 #include "params/BaseO3CPU.hh"
 
@@ -853,6 +854,7 @@ Rename::renameInsts(ThreadID tid)
 
             breakRename = StallReason::SerializeStall;
 
+            DPRINTF(Fetch, "[Anzo] renameInstr instr, pcState: %s, pc: 0x%lx, seqNum: %ld\n", inst->pcState(), inst->getPC(), inst->seqNum);
             break;
         } else if ((inst->isStoreConditional() || inst->isSerializeAfter()) &&
                    !inst->isSerializeHandled()) {
@@ -890,6 +892,7 @@ Rename::renameInsts(ThreadID tid)
 
         // Decrement how many instructions are available.
         --insts_available;
+        DPRINTF(Fetch, "[Anzo] renameInstrX instr, pcState: %s, pc: 0x%lx, seqNum: %ld\n", inst->pcState(), inst->getPC(), inst->seqNum);
     }
 
     if (!rename_stalls.empty()) {

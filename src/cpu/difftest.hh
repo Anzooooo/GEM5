@@ -2,11 +2,10 @@
 #define __COMMON_H__
 
 #include <stdint.h>
-#include <vector>
 
 #include <cassert>
 #include <cstring>
-
+#include <vector>
 
 #include "arch/riscv/types.hh"
 #include "base/logging.hh"
@@ -15,8 +14,12 @@
 enum
 {
     DIFFTEST_TO_DUT, DIFFTEST_TO_REF };
-enum { REF_TO_DUT, DUT_TO_REF };
-enum { REF_TO_DIFFTEST, DUT_TO_DIFFTEST };
+enum
+{
+    REF_TO_DUT, DUT_TO_REF };
+enum
+{
+    REF_TO_DIFFTEST, DUT_TO_DIFFTEST };
 
 typedef uint64_t rtlreg_t;
 
@@ -26,7 +29,6 @@ typedef uint64_t vaddr_t;
 typedef uint16_t ioaddr_t;
 
 #include "nemu_macro.hh"
-
 
 #define VENUM64 (gem5::RiscvISA::VLEN/64)
 #define VENUM32 (gem5::RiscvISA::VLEN/32)
@@ -126,7 +128,8 @@ struct DynamicConfig
     bool debug_difftest;
 };
 
-struct ExecutionGuide {
+struct ExecutionGuide
+{
     // force raise exception
     bool force_raise_exception;
     uint64_t exception_num;
@@ -194,6 +197,8 @@ class RefProxy
     void (*debug_mem_sync)(paddr_t addr, void *bytes, size_t size) = nullptr;
     void (*sdcard_init)(const char *img_path,
                         const char *sd_cpt_bin_path) = nullptr;
+    void (*set_skip_flag)() = nullptr;
+    void (*set_workload_path)(const char *img_path) = nullptr;
     virtual void initState(int coreid, uint8_t *golden_mem) = 0;
 
   protected:
@@ -205,7 +210,7 @@ class RefProxy
 class NemuProxy : public RefProxy
 {
   public:
-    NemuProxy(int coreid, const char *ref_so, bool enable_sdcard_diff, bool enable_mem_dedup, bool multi_core);
+    NemuProxy(int coreid, const char *ref_so, bool enable_sdcard_diff, bool enable_mem_dedup, bool enable_gen_trace, bool multi_core);
 
     void initState(int coreid, uint8_t *golden_mem) override;
 };

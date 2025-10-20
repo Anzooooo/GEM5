@@ -152,7 +152,7 @@ CPU::CPU(const BaseO3CPUParams &params)
     } else {
         checker = NULL;
     }
-
+    std::cout << "numCount: " << numThreads << std::endl;
     if (!FullSystem) {
         thread.resize(numThreads);
         tids.resize(numThreads);

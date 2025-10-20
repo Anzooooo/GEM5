@@ -72,6 +72,7 @@
 #include "debug/ExecFaulting.hh"
 #include "debug/FTBStats.hh"
 #include "debug/Faults.hh"
+#include "debug/Fetch.hh"
 #include "debug/HtmCpu.hh"
 #include "debug/InstCommited.hh"
 #include "debug/O3PipeView.hh"
@@ -669,6 +670,7 @@ Commit::squashAll(ThreadID tid)
     // Send back the squash signal to tell stages that they should
     // squash.
     toIEW->commitInfo[tid].squash = true;
+    DPRINTF(Fetch, "trigger All squash\n");
 
     // Send back the rob squashing signal so other stages know that
     // the ROB is in the process of squashing.
@@ -1011,6 +1013,7 @@ Commit::commit()
             toIEW->commitInfo[tid].doneMemSeqNum = squashed_inst;
 
             toIEW->commitInfo[tid].squash = true;
+            DPRINTF(Fetch, "trigger commit? squash\n");
 
             // Send back the rob squashing signal so other stages know that
             // the ROB is in the process of squashing.
@@ -1231,7 +1234,7 @@ Commit::commitInsts()
                             misPredIndirect[head_inst->pcState().instAddr()]++;
                         }
                     }
-                    dbftb->notifyInstCommit(head_inst);
+                    // dbftb->notifyInstCommit(head_inst);
                 } else if (bp->isBTB()) {
                     auto dbbtb = dynamic_cast<branch_prediction::btb_pred::DecoupledBPUWithBTB*>(bp);
                     bool miss = head_inst->mispredicted();
@@ -1248,7 +1251,7 @@ Commit::commitInsts()
                             misPredIndirect[head_inst->pcState().instAddr()]++;
                         }
                     }
-                    dbbtb->notifyInstCommit(head_inst);
+                    // dbbtb->notifyInstCommit(head_inst);
                 }
                 if (head_inst->isUpdateVsstatusSd()) {
                     auto v = cpu->readMiscRegNoEffect(RiscvISA::MiscRegIndex::MISCREG_VIRMODE, tid);
@@ -1353,6 +1356,7 @@ Commit::commitInsts()
                 }
 
                 if (cpu->difftestEnabled()) {
+                    DPRINTF(Commit, "Normal commit\n");
                     diffInst(tid, head_inst);
                 }
 
@@ -1451,7 +1455,7 @@ Commit::commitInsts()
 void
 Commit::diffInst(ThreadID tid, const DynInstPtr &inst) {
     cpu->diffInfo.lastCommittedMsg.push(inst);
-    if (cpu->diffInfo.lastCommittedMsg.size() > 20) {
+    if (cpu->diffInfo.lastCommittedMsg.size() > 100) {
         cpu->diffInfo.lastCommittedMsg.pop();
     }
     cpu->diffInfo.inst = inst->staticInst;
@@ -1469,6 +1473,7 @@ Commit::diffInst(ThreadID tid, const DynInstPtr &inst) {
     cpu->diffInfo.physEffAddr = inst->physEffAddr;
     cpu->diffInfo.effSize = inst->effSize;
     cpu->diffInfo.goldenValue = inst->getGolden();
+    DPRINTF(Commit, "Diff step pc: %s, seqNum: %ld\n", inst->pcState(), inst->seqNum);
     cpu->difftestStep(tid, inst->seqNum);
 }
 
@@ -1651,6 +1656,7 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
             if (cause == RiscvISA::ExceptionCode::ECALL_USER ||
                 cause == RiscvISA::ExceptionCode::ECALL_SUPER ||
                 cause == RiscvISA::ExceptionCode::ECALL_MACHINE) {
+                DPRINTF(Commit, "Trap exception\n");
                 diffInst(tid, head_inst);
             }
 

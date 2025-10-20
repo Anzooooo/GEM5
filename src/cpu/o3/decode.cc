@@ -52,6 +52,7 @@
 #include "debug/Counters.hh"
 #include "debug/Decode.hh"
 #include "debug/DecoupleBP.hh"
+#include "debug/Fetch.hh"
 #include "debug/O3PipeView.hh"
 #include "params/BaseO3CPU.hh"
 #include "sim/full_system.hh"
@@ -510,6 +511,7 @@ Decode::sortInsts()
             inst->setSquashed();
         }
         insts[inst->threadNumber].push(inst);
+        // DPRINTF(Fetch, "[Anzo] sortInsts, pcState: %s, pc: 0x%lx, seqNum: %ld\n", inst->pcState(), inst->getPC(), inst->seqNum);
     }
 }
 
@@ -806,6 +808,7 @@ Decode::decodeInsts(ThreadID tid)
 
             // Might want to set some sort of boolean and just do
             // a check at the end
+            DPRINTF(Decode, "Anzo pred mis\n");
             squash(inst, inst->threadNumber);
 
             decode_stalls.push(StallReason::InstMisPred);

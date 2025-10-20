@@ -162,6 +162,7 @@ class BaseCPU(ClockedObject):
     enable_riscv_vector = Param.Bool(False, "Enable riscv vector extension")
     enable_riscv_h = Param.Bool(True, "Enable riscv vector extension")
     enable_mem_dedup = Param.Bool(False, "Enable memory deduplication for difftest and golden memory")
+    gen_instr_trace_name = Param.String("", "Generate trace paths using NEMU")
 
     def createInterruptController(self):
         self.interrupts = [

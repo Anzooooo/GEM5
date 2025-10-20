@@ -62,6 +62,7 @@
 #include "params/BaseO3CPU.hh"
 #include "sim/core.hh"
 #include "sim/cur_tick.hh"
+#include "debug/Fetch.hh"
 
 // clang complains about std::set being overloaded with Packet::set if
 // we open up the entire namespace std
@@ -441,8 +442,8 @@ InstructionQueue::insert(const DynInstPtr &new_inst, int disp_seq)
     // Make sure the instruction is valid
     assert(new_inst);
 
-    DPRINTF(IQ, "Adding instruction [sn:%llu] PC %s to the IQ.\n",
-            new_inst->seqNum, new_inst->pcState());
+    // DPRINTF(Fetch, "Adding instruction [sn:%llu] PC %s pc: 0x%lx to the IQ.\n",
+    //         new_inst->seqNum, new_inst->pcState(), new_inst->getPC());
 
     scheduler->insert(new_inst, disp_seq);
 
@@ -516,6 +517,7 @@ InstructionQueue::processFUCompletion(const DynInstPtr &inst, int fu_idx)
     // of a cycle, otherwise they could add too many instructions to
     // the queue.
     issueToExecuteQueue->access(0)->size++;
+    // DPRINTF(Fetch, "[Anzo] IEW push instr, pcState: %s, pc: 0x%lx, seqNum: %ld\n", inst->pcState(), inst->getPC(), inst->seqNum);
     instsToExecute.push_back(inst);
 }
 
@@ -640,6 +642,7 @@ InstructionQueue::scheduleReadyInsts()
         cpu->perfCCT->updateInstPos(issued_inst->seqNum, PerfRecord::AtFU);
         if (op_latency <= 1 || issued_inst->isLoad() || issued_inst->isStore()) {
             i2e_info->size++;
+            // DPRINTF(Fetch, "[Anzo] IEW2 push instr, pcState: %s, pc: 0x%lx, seqNum: %ld\n", issued_inst->pcState(), issued_inst->getPC(), issued_inst->seqNum);
             instsToExecute.push_back(issued_inst);
         }
         else {
@@ -691,6 +694,7 @@ InstructionQueue::scheduleNonSpec(const InstSeqNum &inst)
     (*inst_it).second->setAtCommit();
     (*inst_it).second->setCanIssue();
 
+    // DPRINTF(Fetch, "[Anzo] scheduleNonSpec push instr, pcState: %s, pc: 0x%lx, seqNum: %ld\n", (*inst_it).second->pcState(), (*inst_it).second->getPC(), (*inst_it).second->seqNum);
     scheduler->addToFU((*inst_it).second);
 
     (*inst_it).second = NULL;

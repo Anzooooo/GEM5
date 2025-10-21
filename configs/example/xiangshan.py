@@ -79,6 +79,7 @@ def build_test_system(np, args):
 
     test_sys.xiangshan_system = True
     test_sys.enable_difftest = args.enable_difftest
+    test_sys.gen_instr_trace_name = args.gen_instr_trace_name
 
     XSConfig.config_xiangshan_inputs(args, test_sys)
 
@@ -103,6 +104,18 @@ def build_test_system(np, args):
     # For now, assign all the CPUs to the same clock domain
     test_sys.cpu = [TestCPUClass(clk_domain=test_sys.cpu_clk_domain, cpu_id=i)
                     for i in range(np)]
+
+    if args.ideal_fetch:
+        print("Configuring Fetch stage to use Ideal Frontend Model.")
+        if not args.inst_trace_file:
+            fatal("--inst-trace-file must be provided when using --ideal-fetch")
+
+        test_sys.use_ideal_frontend = True
+        test_sys.inst_trace_file = args.inst_trace_file
+        # for cpu in test_sys.cpu:
+        #     cpu.use_ideal_frontend = True
+        #     cpu.inst_trace_file = args.inst_trace_file
+
     for cpu in test_sys.cpu:
         cpu.mmu.pma_checker = PMAChecker(
             uncacheable=[AddrRange(0, size=0x80000000)])

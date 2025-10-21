@@ -2679,13 +2679,15 @@ Fetch::simFetchAndProcessInstructions()
     }
 
     bool need_stall = false;
-
+    StaticInstPtr &curMacroop = macroop[tid];
     ++fetchStats.cycles;
 
     if (!need_stall) {
         simFetch->fillNextFTQ();
 
         for (int i = 0; i < fetchWidth; ++i) {
+            bool newMacroop = false;
+
             if (simFetch->traceQueue.empty()) {
                 stallReason[i] = TraceQueueStall;
                 DPRINTF(Fetch, " Trace queue shortage causing stall.\n");
@@ -2697,7 +2699,7 @@ Fetch::simFetchAndProcessInstructions()
             }
 
             uint64_t trace_queue_idx = simFetch->getTraceQueueIdx();
-            auto trace_info_opt = simFetch->getTraceInfo();
+            auto trace_info_opt = simFetch->getTraceInfo(true);
 
             if (!trace_info_opt.has_value()) {
                 DPRINTF(Fetch, "Not get trace info.\n");
@@ -2711,7 +2713,7 @@ Fetch::simFetchAndProcessInstructions()
 
             PCStateBase &this_pc = *pc[tid];
             // this_pc.
-            StaticInstPtr &curMacroop = macroop[tid];
+            // StaticInstPtr &curMacroop = macroop[tid];
             auto &sim_fetch_pc = this_pc.as<GenericISA::PCStateWithNext>();
 
             // auto &xx_fetch_pc = this_pc.as<GenericISA::SimplePCState>>();
@@ -2724,22 +2726,22 @@ Fetch::simFetchAndProcessInstructions()
             // ******************`
             // Process Instr
             // ******************
-
             auto *dec_ptr = decoder[tid];
-            Addr offset_in_buffer = fetch_pc - fetchBuffer[tid].startPC;
-            memcpy(dec_ptr->moreBytesPtr(), &current_inst, 4);
+            if (!curMacroop) {
+                Addr offset_in_buffer = fetch_pc - fetchBuffer[tid].startPC;
+                memcpy(dec_ptr->moreBytesPtr(), &current_inst, 4);
 
-            DPRINTF(Fetch, "[tid:%i] Supplying 4 bytes from fetchBuffer at PC %#x Inst 0x%lx\n",
-                    tid, fetch_pc, current_inst);
+                DPRINTF(Fetch, "[tid:%i] Supplying 4 bytes from fetchBuffer at PC %#x Inst 0x%lx\n",
+                        tid, fetch_pc, current_inst);
 
-            // Call decoder with the actual instruction PC
-            decoder[tid]->moreBytes(this_pc, fetch_pc);
+                // Call decoder with the actual instruction PC
+                decoder[tid]->moreBytes(this_pc, fetch_pc);
+            }
+
 
             // Create a copy of the current PC state to calculate the next PC.
             std::unique_ptr<PCStateBase> next_pc(this_pc.clone());
-            auto &sim_next_pc = next_pc->as<GenericISA::PCStateWithNext>();
 
-            sim_next_pc.as<RiscvISA::PCState>().set(trace_info.npc);
             // sim_next_pc.pc(trace_info.npc);
             // sim_next_pc.npc(trace_info.npc + 4);
             // if (trace_info.isJumpOrTaken) {
@@ -2750,9 +2752,26 @@ Fetch::simFetchAndProcessInstructions()
 
             // Decode the instruction, handling macro-op transitions.
             StaticInstPtr staticInst = nullptr;
-            staticInst = dec_ptr->decode(this_pc);
-            ++fetchStats.insts;
 
+            set(pc[tid], this_pc);
+
+            if (!curMacroop) {
+                staticInst = dec_ptr->decode(this_pc);
+                ++fetchStats.insts;
+
+                if (staticInst->isMacroop()) {
+                    curMacroop = staticInst;
+                    DPRINTF(Fetch, "[tid:%i] Macroop instruction decoded\n", tid);
+                }
+            }
+
+            if (curMacroop) {
+                // Fetch the next micro-op from the current macro-op.
+                staticInst = curMacroop->fetchMicroop(pc[tid]->microPC());
+                DPRINTF(Fetch, "[tid:%i] Fetched macroop microop\n", tid);
+                // Check if this is the last micro-op.
+                newMacroop = staticInst->isLastMicroop();
+            }
 
             // ******************
             // Build Instr
@@ -2766,7 +2785,8 @@ Fetch::simFetchAndProcessInstructions()
 
             // Create a new DynInst from the instruction fetched.
             DynInstPtr instruction = new (arrays) DynInst(
-                    arrays, staticInst, NULL, this_pc, *next_pc, seq, cpu);
+                    arrays, staticInst, curMacroop, this_pc, *next_pc, seq, cpu);
+
 
             DPRINTF(Fetch, "Fetch start: Processing PC %s PC addr 0x%lx, [tid:%i] [sn:%llu].\n",
                 instruction->pcState(), instruction->getPC(), instruction->threadNumber,instruction->seqNum);
@@ -2790,8 +2810,16 @@ Fetch::simFetchAndProcessInstructions()
             instruction->setFsqId(trace_queue_idx);
             // FtqId 就是 FtqId。
             instruction->setFtqId(trace_info.ftqIdx);
-            instruction->setPredTarg(*next_pc);
-            instruction->setPredTaken(trace_info.isJumpOrTaken);
+            if (!curMacroop || newMacroop) {
+                auto &sim_next_pc = next_pc->as<GenericISA::PCStateWithNext>();
+                sim_next_pc.as<RiscvISA::PCState>().set(trace_info.npc);
+                instruction->setPredTarg(*next_pc);
+                instruction->setPredTaken(trace_info.isJumpOrTaken);
+            } else {
+                instruction->staticInst->advancePC(*next_pc);
+                instruction->setPredTarg(*next_pc);
+                instruction->setPredTaken(false);
+            }
 
 #if TRACING_ON
             instruction->traceData = cpu->getTracer()->getInstRecord(curTick(), cpu->tcBase(tid),
@@ -2829,13 +2857,29 @@ Fetch::simFetchAndProcessInstructions()
             numInst++;
             fetchStats.nisnDist.sample(numInst);
 
-            if (trace_info.isLastFtqEntry) {
-                simFetch->advanceFtqReadIdx();
+
+
+            if (newMacroop) {
+                curMacroop = NULL;
+
+                DPRINTF(Fetch, "[tid:%i] New macroop transition, PC=%s\n",
+                        tid, this_pc);
             }
+
+            if (!curMacroop) {
+                if (trace_info.isLastFtqEntry) {
+                    simFetch->advanceFtqReadIdx();
+                }
+                simFetch->advanceTraceQueueReadIdx();
+            }
+
+            set(pc[tid], next_pc);
 
             DPRINTF(Fetch, "Fetch finish: Processing PC %s PC addr 0x%lx, FtqId: %lu, FsqId: %lu, is pred taken: %d [tid:%i] [sn:%llu].\n",
                     instruction->pcState(), instruction->getPC(), instruction->getFtqId(), instruction->getFsqId(), trace_info.isJumpOrTaken, instruction->threadNumber,instruction->seqNum);
         }
+
+        macroop[tid] = curMacroop;
 
         if (numInst > 0) {
             wroteToTimeBuffer = true;

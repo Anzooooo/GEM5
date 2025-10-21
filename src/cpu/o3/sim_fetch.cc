@@ -50,22 +50,26 @@ SimFetch::fillNextFTQ()
                 fatal("One ftq entry has overflowed!");
             }
 
-            Addr next_pc = single_trace.pc + current_inst_bytes;
+            Addr continuous_next_pc = single_trace.pc + current_inst_bytes;
 
             // TODO If the next PC after the branch is identical to the next PC in sequence, it should currently be unprocessable.
-            if (current_ftq_inst_bytes > 28 || single_trace.instInfo.brType != BrType::NotCfi || single_trace.instInfo.isJump) {
-                auto next_trace = readerAndParseNextTrace(true);
-                uint32_t next_inst_bytes = isRvC(next_trace.inst) ? 2 : 4;
-                bool is_jump_or_taken = single_trace.pc + current_inst_bytes != next_trace.pc || single_trace.instInfo.isJump;
+            // if (current_ftq_inst_bytes > 28 || single_trace.instInfo.brType != BrType::NotCfi || single_trace.instInfo.isJump) {
+            auto next_trace = readerAndParseNextTrace(true);
+            uint32_t next_inst_bytes = isRvC(next_trace.inst) ? 2 : 4;
+            // taken, jump, exception
+            bool is_discontinuous = continuous_next_pc != next_trace.pc;
+            // DPRINTF(SimFetch, "single trace pc;: 0x%lx, current_inst_bytes: %d, next trace pc: 0x%lx\n", single_trace.pc, current_inst_bytes, next_trace.pc);
+            bool is_jump_or_taken = (is_discontinuous && single_trace.instInfo.brType != BrType::NotCfi) || single_trace.instInfo.isJump;
 
-                if (is_jump_or_taken) {
-                    // DPRINTF(SimFetch, "set jump or taken, pc: 0x%x\n", pc);
-                }
-                single_trace.isJumpOrTaken = is_jump_or_taken;
-                next_pc = next_trace.pc;
-                needNewFtq = current_ftq_inst_bytes + next_inst_bytes > 32 || is_jump_or_taken;
+            if (is_jump_or_taken) {
+                DPRINTF(SimFetch, "set jump or taken, pc: 0x%x\n", single_trace.pc);
             }
 
+            Addr next_pc = is_jump_or_taken ? next_trace.pc : continuous_next_pc;
+            needNewFtq = is_discontinuous || current_ftq_inst_bytes + next_inst_bytes > 32 || is_jump_or_taken;
+            // }
+
+            single_trace.isJumpOrTaken = is_jump_or_taken;
             single_trace.npc = next_pc;
             single_trace.ftqIdx = ftqEnqIdx;
             single_trace.isLastFtqEntry = needNewFtq;
@@ -111,7 +115,7 @@ SimFetch::getBranchType(uint32_t instr, bool rvc)
             }
         } else {
             uint32_t opcode = instr & 0x7F;
-            uint32_t funct3 = (instr >> 13) & 0x7;
+            uint32_t funct3 = (instr >> 12) & 0x7;
             if (opcode == 0b1100011)
                 return BrType::Branch; // B-type instructions
             if (opcode == 0b1101111)
@@ -144,7 +148,7 @@ SimFetch::analyzeInstr(uint32_t inst)
     }
 
     bool is_jal_not_rvc = (info.brType == BrType::Jal && !info.isRVC);
-    bool is_jalr = (info.brType == BrType::Jalr);
+    bool is_jalr = info.brType == BrType::Jalr;
 
     info.isCall = (is_jal_not_rvc || is_jalr) && (info.rd == 1 || info.rd == 5);
     info.isRet = (info.brType == BrType::Jalr) && (info.rs1 == 1 || info.rs1 == 5) && !info.isCall;

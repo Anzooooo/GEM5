@@ -87,6 +87,10 @@ public:
         return ftqReadIdx;
     };
 
+    void advanceTraceQueueReadIdx(uint32_t count = 1)
+    {
+        traceQueueReadIdx += count;
+    }
 
     bool redirect(uint64_t ftq_idx, uint64_t trace_queue_idx, Addr pc, bool type);
 

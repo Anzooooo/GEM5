@@ -81,6 +81,7 @@
 #include "sim/cur_tick.hh"
 #include "sim/faults.hh"
 #include "sim/full_system.hh"
+#include <debug/SimFetch.hh>
 
 namespace gem5
 {
@@ -1306,6 +1307,7 @@ Commit::commitInsts()
                     toIEW->commitInfo[tid].doneFsqId =
                         head_inst->getFsqId() - 1;
                 }
+                DPRINTF(SimFetch, "Commit Squash set PC: %s. old: fsq %ld, ftq %ld; new: fsq %ld ftq %ld\n", head_inst->pcState(), committedStreamId, committedTargetId, head_inst->getFsqId(), head_inst->getFtqId());
                 committedStreamId = head_inst->getFsqId();
                 committedTargetId = head_inst->getFtqId();
                 committedLoopIter = head_inst->getLoopIteration();
@@ -1607,10 +1609,10 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
 
         DPRINTF(
             Commit,
-            "[tid:%i] [sn:%llu] %s Committing instruction with fault %s\n",
+            "[tid:%i] [sn:%llu] %s Committing instruction with fault %s, pc: %s, fsqId: %ld, ftqId: %ld\n",
             tid, head_inst->seqNum,
             head_inst->staticInst->disassemble(
-                head_inst->pcState().instAddr()).c_str(), inst_fault->name());
+                head_inst->pcState().instAddr()).c_str(), inst_fault->name(), head_inst->pcState(), head_inst->fsqId, head_inst->ftqId);
 
 
         if (head_inst->traceData) {
@@ -1664,6 +1666,11 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
 
         }
 
+        if (cpu->params().system->params().use_ideal_frontend) {
+            committedStreamId = head_inst->getFsqId();
+            committedTargetId = head_inst->getFtqId();
+            committedLoopIter = head_inst->getLoopIteration();
+        }
         // Generate trap squash event.
         generateTrapEvent(tid, inst_fault);
         return false;
